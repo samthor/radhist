@@ -7,7 +7,9 @@ let selfKey = (Math.random().toString(36));
 let count = 0;
 
 go.onclick = () => {
-  stack.push('#' + selfKey + '.' + (++count));
+  const page = selfKey + '.' + (++count);
+  stack.push('#' + page);
+  document.title = page;
 };
 
 pop.onclick = () => {
@@ -17,7 +19,9 @@ pop.onclick = () => {
 };
 
 action.onclick = () => {
-  stack.setAction('#' + selfKey + '.' + (++count) + '-action');
+  const page = selfKey + '.' + (++count) + '-action';
+  stack.setAction('#' + page);
+  document.title = page;
 };
 
 back.onclick = () => {

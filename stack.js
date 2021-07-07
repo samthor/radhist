@@ -74,6 +74,7 @@ class StackImpl {
 
     // Regardless, trigger async so user has time to add listeners.
     this.#readyPromise = p.then(() => {
+      // We might announce earlier, so we only properly set it here.
       this.#announce = () => {
         this.#listeners.forEach((listener) => listener());
       };
@@ -117,31 +118,42 @@ class StackImpl {
     // in theory the stack code should never push a new state object, so blank === new
 
     let state = hist.state;
+    let isLinkClick = false;
 
     if (state === undefined || (typeof state?.depth !== 'number')) {
       // This will happen only if a user clicked on an internal #-link.
+      console.warn('internal link');
       state = {
         depth: (this.#depth + 1),
         prevUrl: this.#url,
       };
+      window.history.replaceState(state, '', null);
+      isLinkClick = true;
     } else {
       state = {...state};
     }
 
     // FIXME: popstate might actually go SEVERAL forward or back
 
+    const jump = state.depth - this.#depth;
     const direction = (Math.sign(state.depth - this.#depth));
+    if (direction === 0) {
+      throw new Error(`unexpected popstate, zero move`);
+    }
+
+    console.debug('moved by', jump);
 
     if (this.#wasAction) {
       let backBy = -1;
 
-      if (direction !== -1) {
+      if (direction === +1) {
         // This is a link forward from an action. Pop the action and replace the link.
 
-
         if (this.#depth === 1) {
-          // This is a link forward from a fake action stack.
-          // This is fine, because on return, we remove the action.
+          // This is a link forward from a fake action stack (or a move forward in history at any
+          // jump size), we can't pop the first. This is fine, because on return, we remove the
+          // action.
+          // TODO: if the action had a special title, uhhhhh
           this.#depth = state.depth;
           this.#wasAction = false;
           this.#url = intendedUrl;
@@ -150,9 +162,74 @@ class StackImpl {
           return;
         }
 
+        // We expect this to be a history entry already known.
+        if (!isLinkClick) {
+          throw new Error(`forward but had known state?!`);
+        }
+        if (jump !== 1) {
+          throw new Error(`should not jump forward moer than one`);
+        }
+
         // we have [...stuff, action, new]: pop two, add new
         state.depth--;
         backBy = -2;
+      }
+
+      if (direction === -1 && jump < -1) {
+
+        // we were in state [top, ...stuff, last, action]
+        
+        // e.g., [top, page0, page1, page2, action]
+        
+        // we might be at |page0| now, so we have to push |page1| and |page2| before going
+        // back that many pages
+
+        // ... we don't know what page1, page2 etc was - got to history to go there?!
+
+
+        // jump to page2, go back, push page2, go back to page0
+
+        // TODO: we know prevUrl (previous frame had it), can skip go back - can just go and push
+
+        (async () => {
+          console.debug('INTENDED', this.#buildUrl());
+
+          //         debugger;
+          const p1 = this.#handlePopOnce();
+          hist.go(-jump - 1);
+          await p1;
+
+          const url = this.#buildUrl();
+
+          console.warn('gone forward to', url);
+
+          const p2 = this.#handlePopOnce();
+          hist.back();
+          await p2;
+
+
+          const prevUrl = this.#buildUrl();
+          console.warn('gone back to right before that', prevUrl, history.length);
+          const depth = this.#depth - 1;
+          hist.pushState({prevUrl, depth, blah: 1}, '', url);
+          console.warn('pushed state', history.state, history.length, 'page now', this.#buildUrl(), 'should be', url);
+
+          const p3 = this.#handlePopOnce();
+          hist.go(jump + 1);
+          await p3;
+          // do we care?
+
+          console.warn('jumped back again to intended loc', this.#buildUrl());
+
+          this.#depth = hist.state.depth;
+          this.#wasAction = false;
+          this.#url = this.#buildUrl();
+          this.#announce();
+        })();
+
+        return;
+
+//        throw new Error(`TODO: jump back more than one ${jump}`);
       }
 
       // This is the user going back from an action. We technically should pop it.
@@ -175,7 +252,8 @@ class StackImpl {
       return;
     }
 
-    // This is a normal browser back/forward which we don't care about. Announce it.
+    // This is a normal browser back/forward which we don't care about, including one that is many
+    // steps (i.e., through the history UI). Announce it.
 
     if (state.action) {
       // Special-case going back to the initial faux action.
@@ -238,7 +316,7 @@ class StackImpl {
   }
 
   /**
-   * @param {string?} path 
+   * @param {string?} path
    */
   setAction(path) {
     const s = /** @type {StackState} */ (hist.state);
@@ -258,16 +336,14 @@ class StackImpl {
     const isVirtual = (this.#depth === 1);
     if (isVirtual) {
       // This isn't a real push - we don't have enough stack to deal with it.
-
-      // FIXME: we might be at the start (user pressed back), but with more history
-      // ... go from [here, ...rest] => [action, ...rest]
-      // ???
+      // This means that later pages are still here.
+      // looks like [faux, ...rest]
 
       const state = {...s, action: true, prevUrl: this.#url};
       hist.replaceState(state, '', path);
-
     } else {
       // If we have depth to go back up past this action, then really push it.
+      // Remember this depth will be >=3 now.
       ++this.#depth;
       const state = {...s, action: true, prevUrl: this.#url, depth: this.#depth};
       hist.pushState(state, '', path);
@@ -379,7 +455,7 @@ class StackImpl {
    *
    * @param {() => void} handler
    */
-  #handlePopOnce = (handler) => {
+  #handlePopOnce = (handler = () => {}) => {
     if (this.#duringPop) {
       throw new Error(`can't nest handling pop`);
     }
