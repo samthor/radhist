@@ -11,11 +11,19 @@ go.onclick = () => {
 };
 
 pop.onclick = () => {
-  stack.pop();
+  stack.pop().then(() => {
+    console.info('pop done');
+  });
 };
 
 action.onclick = () => {
   stack.setAction('#' + selfKey + '.' + (++count) + '-action');
+};
+
+back.onclick = () => {
+  stack.back().then((ok) => {
+    console.warn('back done', {ok});
+  });
 };
 
 

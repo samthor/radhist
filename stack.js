@@ -255,13 +255,8 @@ class StackImpl {
       return;
     }
 
-    const isPush = (this.#depth >= 2);
-    if (isPush) {
-      // If we have depth to go back up past this action, then really push it.
-      ++this.#depth;
-      const state = {...s, action: true, prevUrl: this.#url, depth: this.#depth};
-      hist.pushState(state, '', path);
-    } else {
+    const isVirtual = (this.#depth === 1);
+    if (isVirtual) {
       // This isn't a real push - we don't have enough stack to deal with it.
 
       // FIXME: we might be at the start (user pressed back), but with more history
@@ -270,6 +265,12 @@ class StackImpl {
 
       const state = {...s, action: true, prevUrl: this.#url};
       hist.replaceState(state, '', path);
+
+    } else {
+      // If we have depth to go back up past this action, then really push it.
+      ++this.#depth;
+      const state = {...s, action: true, prevUrl: this.#url, depth: this.#depth};
+      hist.pushState(state, '', path);
     }
 
     this.#wasAction = true;
@@ -346,10 +347,23 @@ class StackImpl {
     return p;
   };
 
-  back() {
-    // TODO: rather than doing the dance, this can short-circuit if we have an action
+  async back() {
+    const s = /** @type {StackState} */ (hist.state);
 
+    if (s.action) {
+      return this.pop().then(() => true);
+    }
+
+    if (this.depth === 1) {
+      return false;
+    }
+
+    const p = new Promise((resolve) => {
+      window.addEventListener('popstate', () => resolve(true), { once: true });
+    });
     hist.back();
+
+    return p;
   }
 
   /**
