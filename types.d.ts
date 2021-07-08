@@ -10,7 +10,8 @@ export interface Stack {
   push(path: string, arg?: {state?: any, title?: string}): void;
 
   /**
-   * Pushes a new action onto the stack. If the URL is unspecified, uses the current URL.
+   * Pushes a new action onto the stack. If the URL is unspecified, uses the current URL. (This
+   * is the recommended operation, so page reloads aren't on an unhandled URL.)
    *
    * This operates specially if the stack is at its top. It instead replaces the current history
    * entry, so a user going Back with their browser will close the current page. This is a
@@ -20,7 +21,7 @@ export interface Stack {
    * via a pushState, because then we can't clear the action later). However, going forward and
    * then back to the action will remove/clear the action in favor of the original page.
    */
-  setAction(path: string?): void;
+  setAction(path?: string?, arg?: {state?: any}): void;
 
   /**
    * Replaces the current stack entry with a new URL. This funtions the same whether this is

@@ -1,5 +1,5 @@
 
-import * as types from './foo';
+import * as types from './types';
 
 
 /** @type {StackImpl?} */
@@ -39,8 +39,12 @@ class StackImpl {
   #url;
   #depth;
   #wasAction = false;
+
   /** @type {any} */
   #userState = null;
+
+  /** @type {any} */
+  #actionState = null;
 
   #duringPop = false;
 
@@ -119,11 +123,7 @@ class StackImpl {
   get state() {
     /** @type {StackState} */
     const s = hist.state;
-    if (s?.action) {
-      // actions have no state (this might be 0th stack entry state)
-      return undefined;
-    }
-    return this.#userState;
+    return s?.action ? this.#actionState : this.#userState;
   }
 
   // nb. intentionally empty until replaced in ctor
@@ -311,6 +311,18 @@ class StackImpl {
   };
 
   /**
+   * @param {any} raw
+   */
+  #setActionState = (raw) => {
+    if (raw && typeof raw === 'object') {
+      const s = JSON.stringify(raw);
+      this.#actionState = Object.freeze(JSON.parse(s));
+    } else {
+      this.#actionState = raw;
+    }
+  };
+
+  /**
    * @param {string} path
    * @param {{state?: any, title?: string}} arg
    */
@@ -372,11 +384,14 @@ class StackImpl {
 
   /**
    * @param {string?} path
+   * @param {{state?: any}} arg
    */
-  setAction(path) {
+  setAction(path = null, arg = {}) {
     if (this.#duringPop) {
       throw new Error(`can't setAction during another op`);
     }
+
+    this.#setActionState(arg.state);
 
     const s = /** @type {StackState} */ (hist.state);
 
@@ -526,11 +541,11 @@ class StackImpl {
     }
 
     if (hist.state.action && 'state' in arg) {
-      throw new Error(`can't set state for action`);
+      this.#setActionState(arg.state);
     }
 
     const s = {...hist.state};
-    if ('state' in arg) {
+    if (!s.action && 'state' in arg) {
       s.state = arg.state;
       this.#setUserState(s.state);
     }

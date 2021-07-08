@@ -22,7 +22,7 @@ pop.onclick = () => {
 
 action.onclick = () => {
   const page = selfKey + '.' + (++count) + '-action';
-  stack.setAction('#' + page);
+  stack.setAction(); // '#' + page);
   document.title = page;
 };
 

@@ -1,0 +1,10 @@
+{
+  "name": "radhist",
+  "version": "0.1.0",
+  "description": "Radical history and action",
+  "main": "stack.js",
+  "type": "module",
+  "author": "Sam Thorogood <sam.thorogood@gmail.com>",
+  "license": "Apache-2.0",
+  "types": "types.d.ts"
+}
