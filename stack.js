@@ -24,7 +24,6 @@ export function attachStack() {
  *   depth: number,
  *   action?: true,
  *   state?: any,
- *   prevUrl: string | null,
  *   prevState?: any,
  * }}
  * @type {never}
@@ -73,7 +72,7 @@ class StackImpl {
       this.#setUserState(s.state);
 
       if (s.action) {
-        this.#priorActionState = {depth: s.depth - 1, prevUrl: null};
+        this.#priorActionState = {depth: s.depth - 1};
         if (s.prevState) {
           this.#priorActionState.state = s.prevState;
         }
@@ -161,7 +160,6 @@ class StackImpl {
       // This will happen only if a user clicked on an internal #-link.
       state = {
         depth: (this.#depth + 1),
-        prevUrl: this.#url,
       };
       if (this.#userState) {
         state.prevState = this.#userState;
@@ -214,7 +212,6 @@ class StackImpl {
         this.#handlePopOnce(() => {
           // We're at the stack entry before the intended URL. Find its URL and ensure the new state
           // points back to it.
-          state.prevUrl = this.#buildUrl();
           this.#userState = null;
 
           this.#depth = state.depth;
@@ -252,7 +249,7 @@ class StackImpl {
         const prevUrl = this.#buildUrl();
         const depth = hist.state.depth + 1;
         /** @type {StackState} */
-        const state = {prevUrl, depth};
+        const state = {depth};
 
         // We use priorActionState here because the user can only go back like this in normal
         // operation, where the user went forward to an action in the same browser window.
@@ -285,12 +282,9 @@ class StackImpl {
       // Special-case going back to the initial faux action.
       if (direction === -1 && state.depth === 1) {
         this.#depth = 1;
-        const url = state.prevUrl;
-        state.prevUrl = null;
         delete state.action;
-        hist.replaceState(state, '', url);
+        hist.replaceState(state, '', null);
         this.#announce();
-        // TODO: restore userState
         return;
       }
 
@@ -369,10 +363,10 @@ class StackImpl {
 
       // We have no depth. This action has taken over the top entry.
       // Clear it, then push our new regular path.
-      const url = s.prevUrl;
-      const state = {...s, prevUrl: null};
+      /** @type {StackState} */
+      const state = {...s};
       delete state.action;
-      hist.replaceState(state, '', url);
+      hist.replaceState(state, '', null);
     }
 
     ++this.#depth;
@@ -460,7 +454,6 @@ class StackImpl {
     }
 
     // not really popping - just return to previous state
-    const url = s.prevUrl;
     const state = {...s, prevUrl: null};
     delete state.action;
 
@@ -470,10 +463,9 @@ class StackImpl {
     }
     this.#setUserState(state.state);
 
-    hist.replaceState(state, '', url);
+    hist.replaceState(state, '', null);
     this.#wasAction = false;
 
-    this.#url = this.#buildUrl();
     return true;
   }
 
@@ -514,7 +506,7 @@ class StackImpl {
 
       const prevUrl = this.#buildUrl();
       /** @type {StackState} */
-      const state = {prevUrl, depth: this.#depth};
+      const state = {depth: this.#depth};
       if (hist.state.state) {
         state.prevState = hist.state.state;
       }
@@ -558,9 +550,6 @@ class StackImpl {
 
       /** @type {StackState} */
       const s = {...hist.state};
-      if (path) {
-        s.prevUrl = path;  // nb. this might not be formatted correctly
-      }
       if (updateState) {
         s.prevState = this.#userState;  // already copied
       }
@@ -574,7 +563,6 @@ class StackImpl {
         this.#url = this.#buildUrl();
       }
 
-      console.warn('replaced', this);
       this.#announce();
       return;
     }
