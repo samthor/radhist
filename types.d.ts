@@ -10,8 +10,8 @@ export interface Stack {
   push(path: string, arg?: {state?: any, title?: string}): void;
 
   /**
-   * Pushes a new action onto the stack. If the URL is unspecified, uses the current URL. (This
-   * is the recommended operation, so page reloads aren't on an unhandled URL.)
+   * Sets this to action mode, normally pushing something to the browser's real history stack.
+   * Does not change the current URL.
    *
    * This operates specially if the stack is at its top. It instead replaces the current history
    * entry, so a user going Back with their browser will close the current page. This is a
@@ -21,7 +21,7 @@ export interface Stack {
    * via a pushState, because then we can't clear the action later). However, going forward and
    * then back to the action will remove/clear the action in favor of the original page.
    */
-  setAction(path?: string?, arg?: {state?: any}): void;
+  setAction(arg?: {state?: any}): void;
 
   /**
    * Replaces the current stack entry with a new URL. This funtions the same whether this is
@@ -48,15 +48,17 @@ export interface Stack {
    */
   back(): Promise<boolean>;
 
-  depth: readonly number;
-
-  isAction: readonly boolean;
-
   isReady: readonly boolean;
 
   ready: readonly Promise<void>;
 
+  depth: readonly number;
+
+  isAction: readonly boolean;
+
   state: readonly any;
+
+  actionState: readonly any;
 
   addListener(listener: () => void): void;
 

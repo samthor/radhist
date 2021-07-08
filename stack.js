@@ -41,19 +41,16 @@ class StackImpl {
   #wasAction = false;
 
   /** @type {any} */
-  #userState = null;
+  #userState = undefined;
 
   /** @type {any} */
-  #actionState = null;
+  #actionState = undefined;
 
   #duringPop = false;
 
   // Stored when we have an action on top of the stack, in case the user goes far backwards.
   /** @type {StackState?} */
   #priorActionState = null;
-
-  /** @type {string?} */
-  #priorActionUrl = null;
 
   #isReady = false;
 
@@ -73,12 +70,22 @@ class StackImpl {
     if (hist.state) {
       const s = /** @type {StackState} */ (hist.state);
       this.#depth = s.depth;
+      this.#setUserState(s.state);
 
       if (s.action) {
+        this.#priorActionState = {depth: s.depth - 1, prevUrl: null};
+        if (s.prevState) {
+          this.#priorActionState.state = s.prevState;
+        }
+
         // Reload should remove any pending action: it's transient.
         // This will be async if on the stack, sync otherwise.
         this.#wasAction = true;
         p = this.pop().then(() => {});  // make void
+
+        // FIXME: If this is a real pop, using Back in Chrome - only within the first ~5 sec -
+        // will go to a nonsensical state (possibly before this entire page). Waiting or calling
+        // history.back() is fine.
       }
     } else {
       this.#depth = 1;
@@ -110,6 +117,9 @@ class StackImpl {
   }
 
   get depth() {
+    if (this.#depth === 1 && this.#wasAction) {
+      return 2;  // sort of
+    }
     return this.#depth;
   }
 
@@ -121,9 +131,11 @@ class StackImpl {
   }
 
   get state() {
-    /** @type {StackState} */
-    const s = hist.state;
-    return s?.action ? this.#actionState : this.#userState;
+    return this.#userState;
+  }
+
+  get actionState() {
+    return this.#actionState;
   }
 
   // nb. intentionally empty until replaced in ctor
@@ -167,7 +179,7 @@ class StackImpl {
     }
 
     if (this.#wasAction) {
-      if (this.#priorActionState === null || this.#priorActionUrl === null) {
+      if (this.#priorActionState === null) {
         throw new Error(`action forward/back without previous state`);
       }
 
@@ -247,9 +259,7 @@ class StackImpl {
         if (this.#priorActionState?.state) {
           state.state = this.#priorActionState.state;
         }
-        if (hist.state.state) {
-        }
-        hist.pushState(state, '', this.#priorActionUrl);
+        hist.pushState(state, '', this.#url);
 
         // (c) go back to where the user intended (might already be here)
         const userJump = jump + 1;  // jump is -ve, so this is one closer
@@ -383,10 +393,9 @@ class StackImpl {
   }
 
   /**
-   * @param {string?} path
    * @param {{state?: any}} arg
    */
-  setAction(path = null, arg = {}) {
+  setAction(arg = {}) {
     if (this.#duringPop) {
       throw new Error(`can't setAction during another op`);
     }
@@ -395,21 +404,17 @@ class StackImpl {
 
     const s = /** @type {StackState} */ (hist.state);
 
-    // We're already an action. Just replace ourselves. We don't care whether this was a real
-    // stack entry or not.
+    // We're already an action. Do nothing but announce. (Our state may have changed.)
     if (s?.action) {
       if (!this.#wasAction) {
         throw new Error(`state.action !=== store.action`);
       }
-      hist.replaceState(s, '', path);
-      this.#url = this.#buildUrl();
       this.#announce();
       return;
     }
 
     const priorActionUrl = this.#buildUrl();
     this.#priorActionState = {...s};
-    this.#priorActionUrl = priorActionUrl;
 
     const prevState = s.state;
 
@@ -429,11 +434,11 @@ class StackImpl {
       // This isn't a real push - we don't have enough stack to deal with it.
       // This means that later pages are still here.
       // looks like [faux, ...rest]
-      hist.replaceState(state, '', path);
+      hist.replaceState(state, '', null);
     } else {
       // If we have depth to go back up past this action, then really push it.
       // Remember this depth will be >=3 now.
-      hist.pushState(state, '', path);
+      hist.pushState(state, '', null);
     }
     // nb. we don't clear #userState here - actions don't have it anyway and we need it for links
 
@@ -463,6 +468,7 @@ class StackImpl {
       state.state = state.prevState;
       delete state.prevState;
     }
+    this.#setUserState(state.state);
 
     hist.replaceState(state, '', url);
     this.#wasAction = false;
@@ -540,12 +546,41 @@ class StackImpl {
       throw new Error(`can't replaceState during another op`);
     }
 
-    if (hist.state.action && 'state' in arg) {
-      this.#setActionState(arg.state);
+    const updateState = ('state' in arg);
+    if (updateState) {
+      this.#setUserState(arg.state);
+    }
+
+    if (this.#wasAction) {
+      if (!this.#priorActionState) {
+        throw new Error(`missing prev state cache`);
+      }
+
+      /** @type {StackState} */
+      const s = {...hist.state};
+      if (path) {
+        s.prevUrl = path;  // nb. this might not be formatted correctly
+      }
+      if (updateState) {
+        s.prevState = this.#userState;  // already copied
+      }
+
+      hist.replaceState(s, '', path);
+
+      if (updateState) {
+        this.#priorActionState = {...this.#priorActionState, state: arg.state};
+      }
+      if (path) {
+        this.#url = this.#buildUrl();
+      }
+
+      console.warn('replaced', this);
+      this.#announce();
+      return;
     }
 
     const s = {...hist.state};
-    if (!s.action && 'state' in arg) {
+    if (updateState) {
       s.state = arg.state;
       this.#setUserState(s.state);
     }

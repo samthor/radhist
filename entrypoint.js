@@ -21,9 +21,7 @@ pop.onclick = () => {
 };
 
 action.onclick = () => {
-  const page = selfKey + '.' + (++count) + '-action';
-  stack.setAction(); // '#' + page);
-  document.title = page;
+  stack.setAction();
 };
 
 back.onclick = () => {
@@ -34,14 +32,14 @@ back.onclick = () => {
 
 replace.onclick = () => {
   /** @type {string?} */
-  const url = null; //window.location.hash + '-r';
+  const url = window.location.hash + '-r';
   stack.replace(url, {state: {replaced: true}});
 };
 
 
 const log = /** @type {HTMLElement} */ (document.getElementById('log'));
 stack.addListener(() => {
-  log.textContent += `stack depth (depth=${stack.depth}, hist=${window.history.length}, action=${stack.isAction}): ${window.location.pathname + window.location.hash} (state=${JSON.stringify(stack.state)})\n`;
+  log.textContent += `[h=${history.length}, d=${stack.depth}${stack.isAction ? ', action' : ''}]: ${window.location.pathname + window.location.hash} (state=${JSON.stringify(stack.state)}${stack.isAction ? `, actionState=${JSON.stringify(stack.actionState)}` : ''})\n`;
 });
 
 
