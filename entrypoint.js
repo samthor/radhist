@@ -6,9 +6,11 @@ const stack = attachStack();
 let selfKey = (Math.random().toString(36));
 let count = 0;
 
+window._stack = stack;
+
 go.onclick = () => {
   const page = selfKey + '.' + (++count);
-  stack.push('#' + page);
+  stack.push('#' + page, {state: {count}});
   document.title = page;
 };
 
@@ -31,14 +33,15 @@ back.onclick = () => {
 };
 
 replace.onclick = () => {
-  const url = window.location.hash + '-r';
-  stack.replaceState(url);
+  /** @type {string?} */
+  const url = null; //window.location.hash + '-r';
+  stack.replace(url, {state: {replaced: true}});
 };
 
 
 const log = /** @type {HTMLElement} */ (document.getElementById('log'));
 stack.addListener(() => {
-  log.textContent += `stack depth (depth=${stack.depth}, hist=${window.history.length}, action=${stack.isAction}): ${window.location.pathname + window.location.hash}\n`;
+  log.textContent += `stack depth (depth=${stack.depth}, hist=${window.history.length}, action=${stack.isAction}): ${window.location.pathname + window.location.hash} (state=${JSON.stringify(stack.state)})\n`;
 });
 
 

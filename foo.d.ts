@@ -7,7 +7,7 @@ export interface Stack {
    * Pushes this new path onto the stack. If there was an active action on top of the stack, it's
    * cleared first. This operation is always synchronous.
    */
-  push(path: string): void;
+  push(path: string, arg?: {state?: any, title?: string}): void;
 
   /**
    * Pushes a new action onto the stack. If the URL is unspecified, uses the current URL.
@@ -26,7 +26,7 @@ export interface Stack {
    * Replaces the current stack entry with a new URL. This funtions the same whether this is
    * currently an action or not.
    */
-  replaceState(path: string): void;
+  replace(path: string?, arg?: {state?: any}): void;
 
   /**
    * Attempts to pop the current stack entry and remove it from forward navigation. This is usually
@@ -54,6 +54,8 @@ export interface Stack {
   isReady: readonly boolean;
 
   ready: readonly Promise<void>;
+
+  state: readonly any;
 
   addListener(listener: () => void): void;
 
