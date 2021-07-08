@@ -30,6 +30,11 @@ back.onclick = () => {
   });
 };
 
+replace.onclick = () => {
+  const url = window.location.hash + '-r';
+  stack.replaceState(url);
+};
+
 
 const log = /** @type {HTMLElement} */ (document.getElementById('log'));
 stack.addListener(() => {

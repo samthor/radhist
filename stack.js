@@ -41,6 +41,10 @@ class StackImpl {
   #wasAction = false; 
   #duringPop = false;
 
+  // Stored when we have an action on top of the stack, in case the user goes far backwards.
+  /** @type {string?} */
+  #beforeActionUrl = null;
+
   #isReady = false;
 
   /** @type {Promise<void>} */
@@ -144,8 +148,6 @@ class StackImpl {
     console.debug('moved by', jump);
 
     if (this.#wasAction) {
-      let backBy = -1;
-
       if (direction === +1) {
         // This is a link forward from an action. Pop the action and replace the link.
 
@@ -172,83 +174,61 @@ class StackImpl {
 
         // we have [...stuff, action, new]: pop two, add new
         state.depth--;
-        backBy = -2;
-      }
 
-      if (direction === -1 && jump < -1) {
+        this.#handlePopOnce(() => {
+          // We're at the stack entry before the intended URL. Find its URL and ensure the new state
+          // points back to it.
+          state.prevUrl = this.#buildUrl();
 
-        // we were in state [top, ...stuff, last, action]
-        
-        // e.g., [top, page0, page1, page2, action]
-        
-        // we might be at |page0| now, so we have to push |page1| and |page2| before going
-        // back that many pages
-
-        // ... we don't know what page1, page2 etc was - got to history to go there?!
-
-
-        // jump to page2, go back, push page2, go back to page0
-
-        // TODO: we know prevUrl (previous frame had it), can skip go back - can just go and push
-
-        (async () => {
-          console.debug('INTENDED', this.#buildUrl());
-
-          //         debugger;
-          const p1 = this.#handlePopOnce();
-          hist.go(-jump - 1);
-          await p1;
-
-          const url = this.#buildUrl();
-
-          console.warn('gone forward to', url);
-
-          const p2 = this.#handlePopOnce();
-          hist.back();
-          await p2;
-
-
-          const prevUrl = this.#buildUrl();
-          console.warn('gone back to right before that', prevUrl, history.length);
-          const depth = this.#depth - 1;
-          hist.pushState({prevUrl, depth, blah: 1}, '', url);
-          console.warn('pushed state', history.state, history.length, 'page now', this.#buildUrl(), 'should be', url);
-
-          const p3 = this.#handlePopOnce();
-          hist.go(jump + 1);
-          await p3;
-          // do we care?
-
-          console.warn('jumped back again to intended loc', this.#buildUrl());
-
-          this.#depth = hist.state.depth;
+          this.#depth = state.depth;
           this.#wasAction = false;
-          this.#url = this.#buildUrl();
+          this.#url = intendedUrl;
+          hist.pushState(state, '', intendedUrl);
           this.#announce();
-        })();
-
+        });
+        hist.go(-2);
         return;
-
-//        throw new Error(`TODO: jump back more than one ${jump}`);
       }
 
-      // This is the user going back from an action. We technically should pop it.
-      if (state.action) {
-        throw new Error(`action popped to action?`);
-      }
-      this.#depth = state.depth;
-      this.#wasAction = false;
+      // The user has gone back 1-n pages from a valid action. The stack looked like:
+      //    [top, page0, page1, page2, action*]
+      //
+      // And now it might look like;
+      //    [top, page0*, page1, page2, action]
+      //
+      // To solve this, we:
+      //   (a) go forward to 2 behind the action (page1)
+      //   (b) push page2
+      //   (c) go back to where the user intended
+      //
+      // Note that we might already be at (a) or (c), so we check first.
+      (async () => {
+        // (a) go forward to 2 behind the action (we might already be here)
+        const jumpTwoBack = (-jump - 2);
+        if (jumpTwoBack !== 0) {
+          const p1 = this.#handlePopOnce();
+          hist.go(jumpTwoBack);
+          await p1;
+        }
 
-      this.#handlePopOnce(() => {
-        // We're at the stack entry before the intended URL. Find its URL and ensure the new state
-        // points back to it.
-        state.prevUrl = this.#buildUrl();
+        // (b) push page2, replacing it
+        const prevUrl = this.#buildUrl();
+        const depth = hist.state.depth + 1;
+        hist.pushState({prevUrl, depth}, '', this.#beforeActionUrl);
 
-        this.#url = intendedUrl;
-        hist.pushState(state, '', intendedUrl);
+        // (c) go back to where the user intended (might already be here)
+        const userJump = jump + 1;  // jump is -ve, so this is one closer
+        if (userJump !== 0) {
+          const p2 = this.#handlePopOnce();
+          hist.go(userJump);
+          await p2;
+        }
+
+        this.#depth = hist.state.depth;
+        this.#wasAction = false;
+        this.#url = this.#buildUrl();
         this.#announce();
-      });
-      hist.go(backBy);
+      })();
       return;
     }
 
@@ -333,24 +313,28 @@ class StackImpl {
       return;
     }
 
+    const beforeActionUrl = this.#buildUrl();
+    this.#beforeActionUrl = beforeActionUrl;
+
     const isVirtual = (this.#depth === 1);
     if (isVirtual) {
       // This isn't a real push - we don't have enough stack to deal with it.
       // This means that later pages are still here.
       // looks like [faux, ...rest]
 
-      const state = {...s, action: true, prevUrl: this.#url};
+      const state = {...s, action: true, prevUrl: beforeActionUrl};
       hist.replaceState(state, '', path);
     } else {
       // If we have depth to go back up past this action, then really push it.
       // Remember this depth will be >=3 now.
       ++this.#depth;
-      const state = {...s, action: true, prevUrl: this.#url, depth: this.#depth};
+      const state = {...s, action: true, prevUrl: beforeActionUrl, depth: this.#depth};
       hist.pushState(state, '', path);
     }
 
+    this.#beforeActionUrl = beforeActionUrl;
     this.#wasAction = true;
-    this.#url = this.#buildUrl();
+    this.#url = this.#buildUrl();  // after state replacement
     this.#announce();
   }
 
@@ -422,6 +406,15 @@ class StackImpl {
 
     return p;
   };
+
+  /**
+   * @param {string} path
+   */
+  replaceState(path) {
+    hist.replaceState(hist.state, '', path);
+    this.#url = this.#buildUrl();
+    this.#announce();
+  }
 
   async back() {
     const s = /** @type {StackState} */ (hist.state);

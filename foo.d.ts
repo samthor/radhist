@@ -23,6 +23,12 @@ export interface Stack {
   setAction(path: string?): void;
 
   /**
+   * Replaces the current stack entry with a new URL. This funtions the same whether this is
+   * currently an action or not.
+   */
+  replaceState(path: string): void;
+
+  /**
    * Attempts to pop the current stack entry and remove it from forward navigation. This is usually
    * asynchronous, and you cannot pop again during the async action (will throw).
    *
