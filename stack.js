@@ -145,8 +145,6 @@ class StackImpl {
       throw new Error(`unexpected popstate, zero move`);
     }
 
-    console.debug('moved by', jump);
-
     if (this.#wasAction) {
       if (direction === +1) {
         // This is a link forward from an action. Pop the action and replace the link.
@@ -264,6 +262,10 @@ class StackImpl {
    * @param {string} path
    */
   push(path) {
+    if (this.#duringPop) {
+      throw new Error(`can't push during another op`);
+    }
+
     const s = /** @type {StackState} */ (hist.state);
     if (s.action) {
       this.#wasAction = false;
@@ -299,6 +301,10 @@ class StackImpl {
    * @param {string?} path
    */
   setAction(path) {
+    if (this.#duringPop) {
+      throw new Error(`can't setAction during another op`);
+    }
+
     const s = /** @type {StackState} */ (hist.state);
 
     // We're already an action. Just replace ourselves. We don't care whether this was a real
@@ -411,12 +417,20 @@ class StackImpl {
    * @param {string} path
    */
   replaceState(path) {
+    if (this.#duringPop) {
+      throw new Error(`can't replaceState during another op`);
+    }
+
     hist.replaceState(hist.state, '', path);
     this.#url = this.#buildUrl();
     this.#announce();
   }
 
   async back() {
+    if (this.#duringPop) {
+      throw new Error(`can't back during another op`);
+    }
+
     const s = /** @type {StackState} */ (hist.state);
 
     if (s.action) {
@@ -427,12 +441,9 @@ class StackImpl {
       return false;
     }
 
-    const p = new Promise((resolve) => {
-      window.addEventListener('popstate', () => resolve(true), { once: true });
-    });
+    const p = this.#handlePopOnce();
     hist.back();
-
-    return p;
+    return p.then(() => true);
   }
 
   /**
