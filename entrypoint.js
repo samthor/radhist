@@ -13,8 +13,8 @@ go.onclick = () => {
 };
 
 pop.onclick = () => {
-  stack.pop().then(() => {
-    console.info('pop done');
+  stack.pop().then((ok) => {
+    console.info('pop done', {ok});
   });
 };
 

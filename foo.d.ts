@@ -32,9 +32,9 @@ export interface Stack {
    * Attempts to pop the current stack entry and remove it from forward navigation. This is usually
    * asynchronous, and you cannot pop again during the async action (will throw).
    *
-   * Throws if this stack cannot currently pop.
+   * Returns false if this could not actually pop (i.e., canPop would return false).
    */
-  pop(): Promise<void>;
+  pop(): Promise<boolean>;
 
   /**
    * Whether the stack can be popped.

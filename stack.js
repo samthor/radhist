@@ -374,14 +374,15 @@ class StackImpl {
 
     if (this.#maybeClearFakeAction()) {
       this.#announce();
-      return;
+      return true;
+    }
+
+    if (this.#depth <= 2) {
+      // can't pop!
+      return false;
     }
 
     // Otherwise, we pop as normal.
-    if (this.#depth <= 2) {
-      // can't pop!
-      throw new Error('TODO: can\'t pop without enough depth to go into');
-    }
     const target = hist.state.prevUrl;
     if (typeof target !== 'string') {
       throw new Error(`not sure what page to go to`);
@@ -410,7 +411,7 @@ class StackImpl {
     // This handler will run after our already installed handler.
     hist.go(-2);
 
-    return p;
+    return p.then(() => true);
   };
 
   /**
