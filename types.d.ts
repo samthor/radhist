@@ -21,7 +21,7 @@ export interface Stack {
    * via a pushState, because then we can't clear the action later). However, going forward and
    * then back to the action will remove/clear the action in favor of the original page.
    */
-  setAction(arg?: {state?: any}): void;
+  setAction(state: any): void;
 
   /**
    * Replaces the current stack entry with a new URL. This funtions the same whether this is

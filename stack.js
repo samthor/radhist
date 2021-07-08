@@ -25,6 +25,7 @@ export function attachStack() {
  *   action?: true,
  *   state?: any,
  *   prevState?: any,
+ *   prevUrl?: string,
  * }}
  * @type {never}
  */
@@ -88,7 +89,7 @@ class StackImpl {
       }
     } else {
       this.#depth = 1;
-      const state = {prevUrl: null, depth: this.#depth};
+      const state = {depth: this.#depth};
       hist.replaceState(state, '', null);
     }
 
@@ -160,6 +161,7 @@ class StackImpl {
       // This will happen only if a user clicked on an internal #-link.
       state = {
         depth: (this.#depth + 1),
+        prevUrl: this.#url,
       };
       if (this.#userState) {
         state.prevState = this.#userState;
@@ -246,7 +248,6 @@ class StackImpl {
         }
 
         // (b) push page2, replacing it
-        const prevUrl = this.#buildUrl();
         const depth = hist.state.depth + 1;
         /** @type {StackState} */
         const state = {depth};
@@ -255,6 +256,9 @@ class StackImpl {
         // operation, where the user went forward to an action in the same browser window.
         if (this.#priorActionState?.state) {
           state.state = this.#priorActionState.state;
+        }
+        if (this.#priorActionState?.prevUrl) {
+          state.prevUrl = this.#priorActionState.prevUrl;
         }
         hist.pushState(state, '', this.#url);
 
@@ -370,8 +374,8 @@ class StackImpl {
     }
 
     ++this.#depth;
-    const state = {...s, depth: this.#depth, prevUrl: this.#url};
-    delete state.action;  // in case this was an action
+    /** @type {StackState} */
+    const state = {depth: this.#depth, prevUrl: this.#url};
     if (arg.state) {
       state.state = arg.state;
     }
@@ -387,14 +391,14 @@ class StackImpl {
   }
 
   /**
-   * @param {{state?: any}} arg
+   * @param {state} actionState
    */
-  setAction(arg = {}) {
+  setAction(actionState) {
     if (this.#duringPop) {
       throw new Error(`can't setAction during another op`);
     }
 
-    this.#setActionState(arg.state);
+    this.#setActionState(actionState);
 
     const s = /** @type {StackState} */ (hist.state);
 
@@ -407,7 +411,6 @@ class StackImpl {
       return;
     }
 
-    const priorActionUrl = this.#buildUrl();
     this.#priorActionState = {...s};
 
     const prevState = s.state;
@@ -418,11 +421,11 @@ class StackImpl {
     }
 
     // generate new/virtual state
-    const state = {...s, action: true, prevUrl: priorActionUrl, depth: this.#depth};
+    /** @type {StackState} */
+    const state = {action: true, depth: this.#depth};
     if (prevState) {
       state.prevState = prevState;
     }
-    delete state.state;
 
     if (isVirtual) {
       // This isn't a real push - we don't have enough stack to deal with it.
@@ -454,7 +457,7 @@ class StackImpl {
     }
 
     // not really popping - just return to previous state
-    const state = {...s, prevUrl: null};
+    const state = {...s};
     delete state.action;
 
     if (state.prevState) {
@@ -485,28 +488,34 @@ class StackImpl {
     }
 
     // Otherwise, we pop as normal. This can include an action.
-    const target = hist.state.prevUrl;
-    if (typeof target !== 'string') {
-      throw new Error(`not sure what page to go to`);
-    }
     const expectedDepth = this.#depth - 2;
+    const resultDepth = this.#depth - 1;
 
+    /** @type {StackState} */
     const beforePopHistoryState = {...hist.state};
+
+    // find targetUrl
+    /** @type {string?} */
+    let targetUrl = null;
+    if (beforePopHistoryState.action) {
+      targetUrl = this.#url;
+    } else {
+      targetUrl = beforePopHistoryState.prevUrl ?? null;
+      if (targetUrl === null) {
+        throw new Error(`can't find prevUrl for pop`);
+      }
+    }
 
     const p = this.#handlePopOnce(() => {
       if (hist.state?.depth !== expectedDepth) {
         throw new Error(`expected depth -2, was: ${hist.state.depth} vs expected ${expectedDepth}`);
       }
-      this.#depth = hist.state.depth;
-
-      // TODO: need to store previousState in stack
 
       // We're back two pages; now push what we actually want (doesn't trigger popstate).
-      ++this.#depth;
+      this.#depth = resultDepth;
 
-      const prevUrl = this.#buildUrl();
       /** @type {StackState} */
-      const state = {depth: this.#depth};
+      const state = {depth: this.#depth, prevUrl: this.#buildUrl()};
       if (hist.state.state) {
         state.prevState = hist.state.state;
       }
@@ -515,7 +524,7 @@ class StackImpl {
       }
       this.#setUserState(state.state);
 
-      hist.pushState(state, '', target);
+      hist.pushState(state, '', targetUrl);
 
       this.#wasAction = false;
       this.#url = this.#buildUrl();

@@ -21,7 +21,7 @@ pop.onclick = () => {
 };
 
 action.onclick = () => {
-  stack.setAction();
+  stack.setAction(Math.random());
 };
 
 back.onclick = () => {
