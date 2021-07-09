@@ -38,15 +38,21 @@ export interface Stack {
   pop(): Promise<boolean>;
 
   /**
-   * Whether the stack can be popped.
-   */
-  canPop(): boolean;
-
-  /**
    * Performs an improved 'back'. Clears any current action in favour of an actual browser back.
    * Returns false if this could not move because the site would close.
    */
   back(): Promise<boolean>;
+
+  /**
+   * Returns the URL that would be loaded if the back method was invoked. (The browser's back
+   * button might not restore the same page.)
+   */
+  pageForBack: readonly string?;
+
+  /**
+   * Whether the stack can be popped.
+   */
+  canPop: readonly boolean;
 
   isReady: readonly boolean;
 

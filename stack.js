@@ -138,6 +138,16 @@ class StackImpl {
     return this.#actionState;
   }
 
+  get pageForBack() {
+    if (this.#wasAction) {
+      return this.#url;
+    }
+
+    /** @type {StackState} */
+    const s = hist.state;
+    return s.prevUrl ?? null;
+  }
+
   // nb. intentionally empty until replaced in ctor
   #announce = () => {};
 
@@ -444,7 +454,7 @@ class StackImpl {
     this.#announce();
   }
 
-  canPop() {
+  get canPop() {
     const s = /** @type {StackState} */ (hist.state);
     return s.action || this.#depth > 2;
   }
