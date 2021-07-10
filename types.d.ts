@@ -66,6 +66,15 @@ export interface Stack {
 
   actionState: readonly any;
 
+  /**
+   * Is this the initial state, and why was it caused?
+   *
+   *   - 'restore': a user has opened us after being on another site via History
+   *   - 'new': a brand new encouter with this user
+   *
+   */
+  initial: readonly '' | 'restore' | 'new';
+
   addListener(listener: () => void): void;
 
 }

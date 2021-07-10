@@ -54,6 +54,9 @@ stack.addListener(() => {
   }
   data['pageForBack'] = stack.pageForBack;
   data['canPop'] = stack.canPop;
+  if (stack.initial) {
+    data['initial'] = stack.initial;
+  }
 
   const parts = Object.entries(data).map(([key, value]) => `${key}=${value}`)
 

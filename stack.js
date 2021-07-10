@@ -40,6 +40,9 @@ class StackImpl {
   #depth;
   #wasAction = false;
 
+  /** @type {'' | 'restore' | 'new'} */
+  #initial = '';
+
   /** @type {any} */
   #userState = undefined;
 
@@ -87,10 +90,12 @@ class StackImpl {
         // will go to a nonsensical state (possibly before this entire page). Waiting or calling
         // history.back() is fine.
       }
+      this.#initial = 'restore';
     } else {
       this.#depth = 1;
       const state = {depth: this.#depth};
       hist.replaceState(state, '', null);
+      this.#initial = 'new';
     }
 
     // Regardless, trigger async so user has time to add listeners.
@@ -114,6 +119,10 @@ class StackImpl {
 
   get ready() {
     return this.#readyPromise;
+  }
+
+  get initial() {
+    return this.#initial;
   }
 
   get depth() {
@@ -156,9 +165,10 @@ class StackImpl {
    */
   #popstate = (event) => {
     if (this.#duringPop) {
-      return;
+      return;  // managed, ignore
     }
     const intendedUrl = this.#buildUrl();
+    this.#initial = '';
 
     // we have a new state; it's either in the past and ours, or in the future and ours
     // in theory the stack code should never push a new state object, so blank === new
@@ -348,6 +358,7 @@ class StackImpl {
     if (this.#duringPop) {
       throw new Error(`can't push during another op`);
     }
+    this.#initial = '';
 
     const s = /** @type {StackState} */ (hist.state);
     const prevState = s.state;
@@ -407,6 +418,7 @@ class StackImpl {
     if (this.#duringPop) {
       throw new Error(`can't setAction during another op`);
     }
+    this.#initial = '';
 
     this.#setActionState(actionState);
 
@@ -479,6 +491,8 @@ class StackImpl {
     hist.replaceState(state, '', null);
     this.#wasAction = false;
 
+    this.#initial = '';
+
     return true;
   }
 
@@ -496,6 +510,8 @@ class StackImpl {
       // can't pop!
       return false;
     }
+
+    this.#initial = '';
 
     // Otherwise, we pop as normal. This can include an action.
     const expectedDepth = this.#depth - 2;
@@ -556,6 +572,7 @@ class StackImpl {
     if (this.#duringPop) {
       throw new Error(`can't replaceState during another op`);
     }
+    this.#initial = '';
 
     const updateState = ('state' in arg);
     if (updateState) {
