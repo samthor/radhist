@@ -1,5 +1,5 @@
 
-import { attachStack } from "./stack";
+import attachStack from "./stack";
 
 const stack = attachStack();
 

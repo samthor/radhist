@@ -11,7 +11,7 @@ const hist = window.history;
 /**
  * @return {types.Stack}
  */
-export function attachStack() {
+export default function attachStack() {
   if (impl === null) {
     impl = new StackImpl();
   }
@@ -186,7 +186,14 @@ class StackImpl {
       if (this.#userState) {
         state.prevState = this.#userState;
       }
-      window.history.replaceState(state, '', null);
+
+      // Don't allow naked '#'. Aren't we nice.
+      let path = null;
+      if (window.location.toString().endsWith('#') && (!window.location.hash || window.location.hash === '#')) {
+        path = maybeRectifyPath('#');
+      }
+
+      window.history.replaceState(state, '', path);
       isLinkClick = true;
     } else {
       state = {...state};
@@ -358,6 +365,8 @@ class StackImpl {
     if (this.#duringPop) {
       throw new Error(`can't push during another op`);
     }
+    path = maybeRectifyPath(path);
+
     this.#initial = '';
 
     const s = /** @type {StackState} */ (hist.state);
@@ -572,6 +581,9 @@ class StackImpl {
     if (this.#duringPop) {
       throw new Error(`can't replaceState during another op`);
     }
+    if (path !== null) {
+      path = maybeRectifyPath(path);
+    }
     this.#initial = '';
 
     const updateState = ('state' in arg);
@@ -682,3 +694,14 @@ class StackImpl {
 }
 
 
+/**
+ * @param {string} path
+ */
+function maybeRectifyPath(path) {
+  if (path === '#') {
+    return window.location.pathname + window.location.search;
+  } else if (path.endsWith('#')) {
+    return path.substr(0, path.length - 1);
+  }
+  return path;
+}

@@ -1,5 +1,7 @@
 
 
+export default function attachStack(): Stack;
+
 
 export interface Stack {
 
