@@ -202,6 +202,8 @@ class StackImpl {
     const jump = state.depth - this.#depth;
     const direction = (Math.sign(state.depth - this.#depth));
     if (direction === 0) {
+      // This can happen if a user clicks on a #-link they're already at.
+      return;
       throw new Error(`unexpected popstate, zero move`);
     }
 
