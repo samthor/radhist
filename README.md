@@ -20,7 +20,7 @@ This replaces the History API (it still exists, but you shouldn't use it&mdash;`
 Published on NPM.
 
 ```js
-import attach from 'radhist';
+import { attach } from 'radhist';
 
 const stack = attach();  // idempotent, will always return the same instance
 

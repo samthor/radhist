@@ -18,6 +18,6 @@
     // include the JS files you'd like to check here
     "*.js",
     "*.d.ts",
-    "demo/*.js",
+    "demo/**/*.js",
   ],
 }

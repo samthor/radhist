@@ -27,7 +27,7 @@ const hist = window.history;
 /**
  * @return {types.Stack}
  */
-export default function attachStack() {
+export function attach() {
   if (impl === null) {
     impl = new StackImpl();
   }

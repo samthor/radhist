@@ -20,7 +20,7 @@
  *
  * This is idempotent; calling it many times will give you back the same instance.
  */
-export default function attachStack(): Stack;
+export function attach(): Stack;
 
 
 export interface Stack {

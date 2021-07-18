@@ -1,4 +1,4 @@
-import attach from '../stack.js';
+import { attach } from '../stack.js';
 import { blaps } from './content.js';
 
 const stack = attach();

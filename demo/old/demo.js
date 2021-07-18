@@ -1,7 +1,7 @@
 
-import attachStack from "./stack";
+import { attach } from "../../stack.js";
 
-const stack = attachStack();
+const stack = attach();
 
 const selfKey = (Math.random().toString(36));
 let count = 0;
