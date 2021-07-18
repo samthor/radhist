@@ -15,6 +15,7 @@ const dialogElement = /** @type {HTMLElement} */ (document.querySelector('.dialo
 const headerElement = /** @type {HTMLElement} */ (document.querySelector('header'));
 const headerAnchorElement = /** @type {HTMLAnchorElement} */ (headerElement.querySelector('a'));
 const headerPageElement = /** @type {HTMLElement} */ (headerElement.querySelector('.page'));
+const headerSiteElement = /** @type {HTMLElement} */ (headerElement.querySelector('.site'));
 
 
 function dialogHasFocus() {
@@ -96,6 +97,9 @@ function renderBlap(blap, only = false) {
 function refresh() {
   mainElement.textContent = '';
   footerElement.textContent = '';
+
+  // Set this here so it doesn't "flash" quickly on a reload (as we make it small in the blap case).
+  headerSiteElement.textContent = 'Blapper 📢🐦';
 
   const blapId = window.location.hash.substr(1);
   if (blapId) {
