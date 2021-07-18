@@ -3,8 +3,18 @@
   "version": "0.1.0",
   "description": "Radical history and action state",
   "main": "stack.js",
+  "exports": {
+    "import": "./stack.js",
+    "require": "./stack.cjs"
+  },
   "type": "module",
   "author": "Sam Thorogood <sam.thorogood@gmail.com>",
   "license": "Apache-2.0",
-  "types": "types.d.ts"
+  "types": "types.d.ts",
+  "devDependencies": {
+    "rollup": "^2.53.2"
+  },
+  "scripts": {
+    "prepublishOnly": "rollup --format=cjs -o stack.cjs stack.js"
+  }
 }
