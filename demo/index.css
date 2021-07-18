@@ -1,0 +1,170 @@
+
+body {
+  font-family: Segoe UI,system-ui,-apple-system,sans-serif;
+}
+
+body {
+  min-height: 100%;
+}
+
+header,
+main {
+  max-width: 480px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+  border: 2px solid transparent;
+}
+
+header {
+  color: #333;
+  font-size: 12px;
+  z-index: 500;
+  position: relative;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 24px;
+}
+header h1 a {
+  text-decoration: none;
+  color: #006;
+  display: block;
+  background: #ddf;
+  padding: 12px;
+  border-radius: 8px;
+  display: flex;
+  align-items: flex-end;
+}
+
+header h1 a .page:not(:empty) + .site {
+  font-size: 14px;
+  margin-left: 8px;
+  line-height: 18px;
+  opacity: 0.8;
+}
+
+header p {
+  font-style: italic;
+}
+
+main {
+  border-color: #ccc;
+  border-radius: 8px;
+}
+
+main > section:not(:first-child) {
+  border-top: 2px solid #ccc;
+}
+
+section {
+  padding: 12px;
+  position: relative;
+}
+
+section h2 {
+  font: inherit;
+  font-weight: 500;
+  margin: 0;
+  line-height: 24px;
+  display: flex;
+  align-items: center;
+}
+section h2 span {
+  border-bottom: 2px solid #eee;
+}
+section h2::before {
+  content: '';
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 10000px;
+  background: #777;
+  display: inline-block;
+  margin-right: 0.5em;
+}
+section a {
+  color: inherit;
+  text-decoration: none;
+}
+section a::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+section a:hover::after {
+  background: #eee4;
+}
+section:not(.only) {
+  font-size: 12px;
+}
+
+section button {
+  position: relative;
+  z-index: 2;
+  cursor: pointer;
+  font: inherit;
+  background: #1112;
+  border: 0;
+  border-radius: 4px;
+  padding: 2px 8px;
+  line-height: 24px;
+  font-size: 12px;
+}
+section button:hover {
+  background: #6665;
+}
+
+footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: 18px;
+  min-height: 64px;
+  border-radius: 4px;
+  background: #ccf;
+  padding: 8px;
+  box-shadow: 0 1px 6px #6664;
+  z-index: 800;
+}
+
+
+.dialog {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.dialog[hidden] {
+  display: none;
+}
+.dialog::before {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  background: #0007;
+  content: '';
+}
+.dialog:focus {
+  outline: 0;
+}
+.dialog > .dialog-inner {
+  margin: 0 auto;
+  max-width: 320px;
+  width: 100%;
+  background: white;
+  display: block;
+  border-radius: 4px;
+  padding: 12px;
+  box-shadow: 0 1px 4px #3338;
+  z-index: 101;
+}
