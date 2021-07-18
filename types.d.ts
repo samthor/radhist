@@ -1,9 +1,35 @@
+/*
+ * Copyright 2021 Sam Thorogood.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 
 
+/**
+ * Attaches to the History API, taking over its functionality.
+ *
+ * This is idempotent; calling it many times will give you back the same instance.
+ */
 export default function attachStack(): Stack;
 
 
 export interface Stack {
+
+  /**
+   * Adds a listener for this stack. Listeners added immediately after this object was attached
+   * will always be invoked for the initial state (asynchronously via microtask).
+   */
+  addListener(listener: () => void): void;
 
   /**
    * Pushes this new path onto the stack. If there was an active action on top of the stack, it's
@@ -33,14 +59,15 @@ export interface Stack {
 
   /**
    * Attempts to pop the current stack entry and remove it from forward navigation. This is usually
-   * asynchronous, and you cannot pop again during the async action (will throw).
+   * asynchronous, and you cannot pop again during the async action (will throw). This first closes
+   * any current action.
    *
    * Returns false if this could not actually pop (i.e., canPop would return false).
    */
   pop(): Promise<boolean>;
 
   /**
-   * Performs an improved 'back'. Clears any current action in favour of an actual browser back.
+   * Performs an improved 'back'. Pops any current action in favour of an actual browser back.
    * Returns false if this could not move because the site would close.
    */
   back(): Promise<boolean>;
@@ -62,16 +89,35 @@ export interface Stack {
    */
   canPop: readonly boolean;
 
+  /**
+   * Is this object ready to use?
+   */
   isReady: readonly boolean;
 
+  /**
+   * Resolves asynchronously once this object is set up. In practice this only takes time if the
+   * reloads a page that was previously an action, as this must be cleared.
+   */
   ready: readonly Promise<void>;
 
+  /**
+   * The current depth (how many pages deep are they) into your site.
+   */
   depth: readonly number;
 
+  /**
+   * Is this currently an action state?
+   */
   isAction: readonly boolean;
 
+  /**
+   * Any current history state added via push.
+   */
   state: readonly any;
 
+  /**
+   * The action state. Only available if isAction is true from a previous call to setAction.
+   */
   actionState: readonly any;
 
   /**
@@ -82,7 +128,5 @@ export interface Stack {
    *
    */
   initial: readonly '' | 'restore' | 'new';
-
-  addListener(listener: () => void): void;
 
 }
