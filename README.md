@@ -1,3 +1,4 @@
+
 Radical HTML history library.
 Inspired by [this tweetstorm](https://twitter.com/samthor/status/1412331912048254979).
 **Check out ➡️ [a demo](https://samthor.github.io/radhist/demo/)**.
@@ -7,7 +8,7 @@ Why do you want this?
 Let's start with a video demo, from Twitter (about Twitter)!
 This library helps you implement this behavior, whether user-initated or programatically:
 
-<!-- TODO: video -->
+https://user-images.githubusercontent.com/119184/126085082-b9151387-157a-4853-ae3f-ca014096bc53.mp4
 
 In the example, the user pops the third "retweet" state.
 Because we have two buffer states, it can actually pop again and restore a 'new' middle state&mdash;removing the ability to press Forward in the user's browser.
