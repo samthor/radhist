@@ -1,8 +1,17 @@
 Radical HTML history library.
 Inspired by [this tweetstorm](https://twitter.com/samthor/status/1412331912048254979).
+**Check out ➡️ [a demo](https://samthor.github.io/radhist/demo/)**.
+This lets you pop history, and set 'action state'.
 
-The History API has a few limitations, and isn't well-suited to building app-like experiences on the web.
-This has been [discussed in length](https://github.com/WICG/app-history), but as of mid-2021, has no serious movement from browser vendors.
+Why do you want this?
+Let's start with a video demo, from Twitter (about Twitter)!
+This library helps you implement this behavior, whether user-initated or programatically:
+
+<!-- TODO: video -->
+
+In the example, the user pops the third "retweet" state.
+Because we have two buffer states, it can actually pop again and restore a 'new' middle state&mdash;removing the ability to press Forward in the user's browser.
+Read on for what `radhist` can do. ⬇️📖
 
 # Usage
 
@@ -50,15 +59,7 @@ For more features, check out the [types file](https://github.com/samthor/radhist
 
 # Library Features
 
-This library adds a new _concept_, and a related capability.
-But first, an example from Twitter (about Twitter)!
-This library helps you implement this behavior, whether user-initated or programatically:
-
-<video src="https://storage.googleapis.com/hwhistlr.appspot.com/assets/stackanimation.mp4" width="960" height="480"></video>
-
-In the example, the user pops the third "retweet" state.
-Because we have two buffer states, it can actually pop again and restore a 'new' middle state&mdash;removing the ability to press Forward in the user's browser.
-Read on for what `radhist` can do. ⬇️📖
+This library adds a new _concept_ (in 'action state'), a related capability, plus a bunch of nicities in the stack object.
 
 ## Action State
 
@@ -82,3 +83,8 @@ If your history API has at least three entries, you can pop the current page and
 
 This works just like the video above suggests&mdash;technically, it goes back two pages and pushes the same page.
 However, this library hides this implementation and simply calls you once.
+
+# Background
+
+For background, the History API has a few limitations, and isn't that well-suited to building app-like experiences on the web.
+This has been [discussed in length](https://github.com/WICG/app-history), but as of mid-2021, has no serious movement from browser vendors.

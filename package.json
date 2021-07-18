@@ -1,7 +1,7 @@
 {
   "name": "radhist",
   "version": "0.1.0",
-  "description": "Radical history and action",
+  "description": "Radical history and action state",
   "main": "stack.js",
   "type": "module",
   "author": "Sam Thorogood <sam.thorogood@gmail.com>",
