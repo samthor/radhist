@@ -94,7 +94,10 @@ class StackImpl {
     } else {
       this.#depth = 1;
       const state = {depth: this.#depth};
-      hist.replaceState(state, '', null);
+
+      const path = findNakedHashHistoryUrl();
+      hist.replaceState(state, '', path);
+
       this.#initial = 'new';
     }
 
@@ -126,9 +129,6 @@ class StackImpl {
   }
 
   get depth() {
-    if (this.#depth === 1 && this.#wasAction) {
-      return 2;  // sort of
-    }
     return this.#depth;
   }
 
@@ -148,6 +148,20 @@ class StackImpl {
   }
 
   get pageForBack() {
+    if (this.#wasAction) {
+      return this.#url;
+    }
+
+    /** @type {StackState} */
+    const s = hist.state;
+    return s.prevUrl ?? null;
+  }
+
+  get pageForUserBack() {
+    if (this.#depth === 1) {
+      return null;
+    }
+
     if (this.#wasAction) {
       return this.#url;
     }
@@ -188,11 +202,7 @@ class StackImpl {
       }
 
       // Don't allow naked '#'. Aren't we nice.
-      let path = null;
-      if (window.location.toString().endsWith('#') && (!window.location.hash || window.location.hash === '#')) {
-        path = maybeRectifyPath('#');
-      }
-
+      const path = findNakedHashHistoryUrl();
       window.history.replaceState(state, '', path);
       isLinkClick = true;
     } else {
@@ -693,6 +703,18 @@ class StackImpl {
 
     return p;
   };
+}
+
+
+/**
+ * @return {string?}
+ */
+function findNakedHashHistoryUrl() {
+  let path = null;
+  if (window.location.toString().endsWith('#') && (!window.location.hash || window.location.hash === '#')) {
+    path = maybeRectifyPath('#');
+  }
+  return path;
 }
 
 

@@ -4,7 +4,6 @@ import { blaps } from './content.js';
 const stack = attach();
 
 stack.addListener(() => {
-  console.info('state now', stack.state, 'action', stack.isAction, 'with url', window.location.toString());
   refresh();
 });
 
@@ -23,6 +22,8 @@ function dialogHasFocus() {
 }
 
 
+// Steal the top link. If it's clicked while the action is open, just close the action.
+// This remains a link because perhaps we want to open it in a new tab.
 headerAnchorElement.addEventListener('click', (event) => {
   if (stack.isAction) {
     stack.pop();
@@ -33,16 +34,16 @@ headerAnchorElement.addEventListener('click', (event) => {
 
 dialogElement.addEventListener('focusout', (event) => {
   if (dialogElement.hidden) {
+    // If we were already closed then prevent this from popping twice.
     return;
   }
 
+  // Don't close if we are focused within the dialog or the header.
   if (event.relatedTarget instanceof HTMLElement) {
     if (dialogElement.contains(event.relatedTarget)) {
       return;
     }
-
     if (headerElement.contains(event.relatedTarget)) {
-      // We allow focus on the header.
       return;
     }
   }
@@ -51,6 +52,7 @@ dialogElement.addEventListener('focusout', (event) => {
 });
 
 
+// Button handler for "yes" and "no" buttons.
 dialogElement.addEventListener('click', (event) => {
   if (!(event.target instanceof HTMLElement)) {
     return;
@@ -60,8 +62,7 @@ dialogElement.addEventListener('click', (event) => {
     return;
   }
   event.preventDefault();
-  stack.pop();
-//  headerAnchorElement.click();
+  headerAnchorElement.click();
 });
 
 
@@ -96,8 +97,6 @@ function refresh() {
   mainElement.textContent = '';
   footerElement.textContent = '';
 
-  footerElement.textContent = `depth=${stack.depth} prev=${stack.pageForBack}`;
-
   const blapId = window.location.hash.substr(1);
   if (blapId) {
     const blap = blaps.find(({ id }) => blapId === id);
@@ -115,6 +114,32 @@ function refresh() {
       dialogElement.focus();
     }
   }
+
+  // Render information about the current state.
+
+  /** @type {string[]} */
+  const dots = [];
+
+  let backAction = 'Close the site (first in history)';
+  const pageForUserBack = stack.pageForUserBack;
+  if (pageForUserBack !== null) {
+    if (stack.isAction) {
+      backAction = 'Pop the top action';
+    } else {
+      backAction = `Load <code>${pageForUserBack}</code>`;
+    }
+  }
+  dots.push(`User going "Back" will: <span>${backAction}</span>`);
+
+  if (stack.initial) {
+    dots.push(`This is the initial page due to: <span>${stack.initial}</span>`);
+  }
+
+  if (stack.isAction) {
+    dots.push(`Reload will clear action`);
+  }
+
+  footerElement.innerHTML = dots.map((s) => `<li>${s}</li>`).join('');
 }
 
 document.body.addEventListener('click', (event) => {
@@ -132,6 +157,5 @@ document.body.addEventListener('click', (event) => {
     return;
   }
 
-  console.warn('set action');
   stack.setAction({ retweet: id });
 });

@@ -47,9 +47,15 @@ export interface Stack {
 
   /**
    * Returns the URL that would be loaded if the back method was invoked. (The browser's back
-   * button might not restore the same page.)
+   * button might not restore the same page.) Null if this cannot go back.
    */
   pageForBack: readonly string?;
+
+  /**
+   * Returns the URL that would be loaded if the user clicks 'back'. Null if this would leave the
+   * site.
+   */
+  pageForUserBack: readonly string?;
 
   /**
    * Whether the stack can be popped.

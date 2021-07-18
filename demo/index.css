@@ -129,6 +129,21 @@ footer {
   box-shadow: 0 1px 6px #6664;
   z-index: 800;
 }
+footer li {
+  margin-bottom: 2px;
+}
+footer li span {
+  color: #333;
+  font-weight: 500;
+  background: #fff7;
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 2px;
+}
+footer li code {
+  font-family: monospace;
+  font-size: 16px;
+}
 
 
 .dialog {

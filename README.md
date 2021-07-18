@@ -46,6 +46,8 @@ openConfirmDialogButton.onclick = () => {
 };
 ```
 
+For more features, check out the [types file](https://github.com/samthor/radhist/blob/main/types.d.ts).
+
 # Library Features
 
 This library adds a new _concept_, and a related capability.
