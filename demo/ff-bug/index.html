@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+
+<a href="#a">link: #a</a>
+<a href="#b">link: #b</a>
+
+<button id="setButton">Set history.state to something</button>
+<button id="getButton">Get history.state</button>
+
+<pre id="logHolder"></pre>
+
+<script>
+
+function log(s) {
+  const message = `[${performance.now()} ${window.location.hash}]: ${s}\n`;
+  logHolder.prepend(message);
+}
+
+setButton.onclick = () => {
+  window.history.replaceState({ something: Math.random() }, '', null);
+  log(`history.state SET=${JSON.stringify(history.state)}`);
+};
+
+getButton.onclick = () => {
+  log(`history.state GET=${JSON.stringify(history.state)}`);
+};
+
+window.addEventListener('popstate', (event) => {
+  log(`popstate fired, location now=${window.location.toString()}`);
+});
+
+</script>
+
+</body>
+</html>
