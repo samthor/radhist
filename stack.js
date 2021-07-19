@@ -30,6 +30,7 @@ const hist = window.history;
 export function attach() {
   if (impl === null) {
     impl = new StackImpl();
+    window._stack = impl;
   }
   return impl;
 }
@@ -97,10 +98,21 @@ class StackImpl {
           this.#priorActionState.state = s.prevState;
         }
 
+        // TODO(samthor): This might be important.
+        if (document.readyState !== 'complete') {
+          p = p.then(async () => {
+            /** @type {Promise<void>} */
+            const inner = new Promise((r) => {
+              window.addEventListener('load', () => r());
+            });
+            await inner;
+          });
+        }
+
         // Reload should remove any pending action: it's transient.
         // This will be async if on the stack, sync otherwise.
         this.#wasAction = true;
-        p = this.pop().then(() => {});  // make void
+        p = p.then(() => this.pop().then(() => undefined));  // makes result void
 
         // FIXME: If this is a real pop, using Back in Chrome - only within the first ~5 sec -
         // will go to a nonsensical state (possibly before this entire page). Waiting or calling
@@ -659,9 +671,9 @@ class StackImpl {
       throw new Error(`can't back during another op`);
     }
 
-    const s = /** @type {StackState} */ (hist.state);
+    const prev = /** @type {StackState} */ (hist.state);
 
-    if (s.action) {
+    if (prev.action) {
       return this.pop().then(() => true);
     }
 
