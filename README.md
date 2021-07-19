@@ -58,6 +58,18 @@ openConfirmDialogButton.onclick = () => {
 
 For more features, check out the [types file](https://github.com/samthor/radhist/blob/main/types.d.ts).
 
+# Notes
+
+* Don't use the History API (`pushState`, `replaceState`, and the `popstate` handler).
+  This library expects to trigger these regularly in odd asynchronous ways.
+
+* You can use the older `window.location.assign` or `window.location.hash = ...` approaches to changing the URL, because they mostly look like a user-initiated change (and reload the page in all cases but hash changes).
+  * Don't set the _same_ hashed URL (e.g., `window.location.hash = window.location.hash`).
+    Firefox made [an awkward choice](https://bugzilla.mozilla.org/show_bug.cgi?id=1183881) when implementing the History API that means this change can go unnoticed.
+
+* Chrome has an odd issue around navigation after you reload a page that was in the action state.
+  Bug TBD.
+
 # Library Features
 
 This library adds a new _concept_ (in 'action state'), a related capability, plus a bunch of nicities in the stack object.
@@ -88,4 +100,4 @@ However, this library hides this implementation and simply calls you once.
 # Background
 
 For background, the History API has a few limitations, and isn't that well-suited to building app-like experiences on the web.
-This has been [discussed in length](https://github.com/WICG/app-history), but as of mid-2021, has no serious movement from browser vendors.
+This has been [discussed in length](https://github.com/WICG/app-history), but as of mid-2021, is not ready yet.

@@ -18,6 +18,12 @@
 import * as types from './types.js';
 
 
+/**
+ * If true, then we have to look for clicks that open a self-hash.
+ */
+const brokenSelfLink = navigator.userAgent.indexOf('Firefox') !== -1;
+
+
 /** @type {StackImpl?} */
 let impl = null;
 
@@ -30,7 +36,6 @@ const hist = window.history;
 export function attach() {
   if (impl === null) {
     impl = new StackImpl();
-    window._stack = impl;
   }
   return impl;
 }
@@ -57,12 +62,6 @@ class StackImpl {
   #depth;
   #wasAction = false;
 
-  // Needed because of a Firefox bug (clicking a #link that we're already on sets state to null).
-  // There's a bunch of support code around this (the #pushState and #replaceState helpers on this
-  // class). This is the _actual_ recent browser state.
-  /** @type {any} */
-  #recentBrowserState = null;
-
   /** @type {'' | 'restore' | 'new'} */
   #initial = '';
 
@@ -87,37 +86,61 @@ class StackImpl {
   #listeners = new Set();
 
   /**
-   * @param {any} state
-   * @param {string} title
-   * @param {string?} url
-   */
-  #pushState = (state, title, url) => {
-    hist.pushState(state, title, url);
-    this.#recentBrowserState = hist.state;
-  };
-
-  /**
-   * @param {any} state
-   * @param {string} title
-   * @param {string?} url
-   */
-  #replaceState = (state, title, url) => {
-    hist.replaceState(state, title, url);
-    this.#recentBrowserState = hist.state;
-  };
-
-  /**
    * @return {StackState}
    */
   #internalState = () => {
     if (hist.state) {
       return hist.state;
     }
-    return hist.state ?? this.#recentBrowserState ?? { depth: 1 };
+
+    // This should never happen in practice.
+    return { depth: 1 };
+  };
+
+  /**
+   * This checks to see if we clicked on a link that might possibly link to itself (with a hash).
+   * This is to work around a Firefox issue (1183881).
+   *
+   * I'm eager for a better solution than this.
+   *
+   * @param {Event} event
+   */
+  #hashClickLinkCheck = (event) => {
+    const hashWas = window.location.hash;
+    if (!hashWas) {
+      // We only care if there was a hash, because that's the way a user can go to the same hash.
+      return;
+    }
+    const el = /** @type {HTMLElement} */ (event.target);
+    if (!(el instanceof HTMLElement)) {
+      return;
+    }
+    const closest = /** @type {HTMLAnchorElement?} */ (el.closest('a[href]'));
+    if (closest && closest.href !== window.location.toString()) {
+      return;
+    }
+    // We have to fall through even if we can't find a closest <a>, because perhaps this is an
+    // element with a closed Shadow Root. Ah, DOM.
+
+    const historyWas = hist.state;
+    const lengthWas = hist.length;
+
+    window.setTimeout(() => {
+      window.setTimeout(() => {
+        if (hist.state === null && hashWas === window.location.hash && hist.length === lengthWas) {
+          hist.replaceState(historyWas, '', null);
+          return;
+        }
+      }, 0);
+    }, 0);
   };
 
   constructor() {
     window.addEventListener('popstate', this.#popstate);
+
+    if (brokenSelfLink) {
+      window.addEventListener('click', this.#hashClickLinkCheck);
+    }
 
     this.#url = this.#buildUrl();
 
@@ -171,7 +194,7 @@ class StackImpl {
       const state = { depth: this.#depth };
 
       const path = findNakedHashHistoryUrl();
-      this.#replaceState(state, '', path);
+      hist.replaceState(state, '', path);
 
       this.#initial = 'new';
     }
@@ -251,7 +274,6 @@ class StackImpl {
    * @param {PopStateEvent} event
    */
   #popstate = (event) => {
-    this.#recentBrowserState = hist.state;
     if (this.#duringPop) {
       return;  // managed, ignore
     }
@@ -277,7 +299,7 @@ class StackImpl {
 
       // Don't allow naked '#'. Aren't we nice.
       const path = findNakedHashHistoryUrl();
-      this.#replaceState(state, '', path);
+      hist.replaceState(state, '', path);
       isLinkClick = true;
     } else {
       state = { ...state };
@@ -334,7 +356,7 @@ class StackImpl {
           this.#depth = state.depth;
           this.#wasAction = false;
           this.#url = intendedUrl;
-          this.#pushState(state, '', intendedUrl);
+          hist.pushState(state, '', intendedUrl);
           this.#announce();
         });
         hist.go(-2);
@@ -375,7 +397,7 @@ class StackImpl {
         if (this.#priorActionState?.prevUrl) {
           state.prevUrl = this.#priorActionState.prevUrl;
         }
-        this.#pushState(state, '', this.#url);
+        hist.pushState(state, '', this.#url);
 
         // (c) go back to where the user intended (might already be here)
         const userJump = jump + 1;  // jump is -ve, so this is one closer
@@ -402,7 +424,7 @@ class StackImpl {
       if (direction === -1 && state.depth === 1) {
         this.#depth = 1;
         delete state.action;
-        this.#replaceState(state, '', null);
+        hist.replaceState(state, '', null);
         this.#announce();
         return;
       }
@@ -474,7 +496,7 @@ class StackImpl {
         if (prevState) {
           state.prevState = prevState;
         }
-        this.#replaceState(state, arg.title ?? '', path);
+        hist.replaceState(state, arg.title ?? '', path);
         if (arg.title) {
           document.title = arg.title;
         }
@@ -488,7 +510,7 @@ class StackImpl {
       /** @type {StackState} */
       const state = { ...s };
       delete state.action;
-      this.#replaceState(state, '', null);
+      hist.replaceState(state, '', null);
     }
 
     ++this.#depth;
@@ -500,7 +522,7 @@ class StackImpl {
     if (prevState) {
       state.prevState = prevState;
     }
-    this.#pushState(state, arg.title ?? '', path);
+    hist.pushState(state, arg.title ?? '', path);
     if (arg.title) {
       document.title = arg.title;
     }
@@ -550,11 +572,11 @@ class StackImpl {
       // This isn't a real push - we don't have enough stack to deal with it.
       // This means that later pages are still here.
       // looks like [faux, ...rest]
-      this.#replaceState(state, '', null);
+      hist.replaceState(state, '', null);
     } else {
       // If we have depth to go back up past this action, then really push it.
       // Remember this depth will be >=3 now.
-      this.#pushState(state, '', null);
+      hist.pushState(state, '', null);
     }
     // nb. we don't clear #userState here - actions don't have it anyway and we need it for links
 
@@ -585,7 +607,7 @@ class StackImpl {
     }
     this.#setUserState(state.state);
 
-    this.#replaceState(state, '', null);
+    hist.replaceState(state, '', null);
     this.#wasAction = false;
 
     this.#initial = '';
@@ -653,7 +675,7 @@ class StackImpl {
       }
       this.#setUserState(state.state);
 
-      this.#pushState(state, '', targetUrl);
+      hist.pushState(state, '', targetUrl);
 
       this.#wasAction = false;
       this.#url = this.#buildUrl();
@@ -696,7 +718,7 @@ class StackImpl {
         s.prevState = this.#userState;  // already copied
       }
 
-      this.#replaceState(s, '', path);
+      hist.replaceState(s, '', path);
 
       if (updateState) {
         this.#priorActionState = { ...this.#priorActionState, state: arg.state };
@@ -714,7 +736,7 @@ class StackImpl {
       this.#setUserState(s.state);
     }
 
-    this.#replaceState(s, '', path);
+    hist.replaceState(s, '', path);
     this.#url = this.#buildUrl();
     this.#announce();
   }
