@@ -49,6 +49,7 @@ dialogElement.addEventListener('focusout', (event) => {
     }
   }
 
+  console.debug('focusout fired', window.history.length);
   headerAnchorElement.click();
 });
 
