@@ -57,6 +57,12 @@ class StackImpl {
   #depth;
   #wasAction = false;
 
+  // Needed because of a Firefox bug (clicking a #link that we're already on sets state to null).
+  // There's a bunch of support code around this (the #pushState and #replaceState helpers on this
+  // class). This is the _actual_ recent browser state.
+  /** @type {any} */
+  #recentBrowserState = null;
+
   /** @type {'' | 'restore' | 'new'} */
   #initial = '';
 
@@ -79,6 +85,36 @@ class StackImpl {
 
   /** @type {Set<() => void>} */
   #listeners = new Set();
+
+  /**
+   * @param {any} state
+   * @param {string} title
+   * @param {string?} url
+   */
+  #pushState = (state, title, url) => {
+    hist.pushState(state, title, url);
+    this.#recentBrowserState = hist.state;
+  };
+
+  /**
+   * @param {any} state
+   * @param {string} title
+   * @param {string?} url
+   */
+  #replaceState = (state, title, url) => {
+    hist.replaceState(state, title, url);
+    this.#recentBrowserState = hist.state;
+  };
+
+  /**
+   * @return {StackState}
+   */
+  #internalState = () => {
+    if (hist.state) {
+      return hist.state;
+    }
+    return hist.state ?? this.#recentBrowserState ?? { depth: 1 };
+  };
 
   constructor() {
     window.addEventListener('popstate', this.#popstate);
@@ -122,9 +158,7 @@ class StackImpl {
         // This will be async if on the stack, sync otherwise.
         this.#wasAction = true;
         p = p.then(async () => {
-          // console.info('popping', document.readyState);
           await this.pop();
-          // console.info('DONE popping');
         });
 
         // FIXME: If this is a real pop, using Back in Chrome - only within the first ~5 sec -
@@ -137,7 +171,7 @@ class StackImpl {
       const state = { depth: this.#depth };
 
       const path = findNakedHashHistoryUrl();
-      hist.replaceState(state, '', path);
+      this.#replaceState(state, '', path);
 
       this.#initial = 'new';
     }
@@ -174,10 +208,8 @@ class StackImpl {
   }
 
   get isAction() {
-    if (Boolean(hist.state?.action) !== this.#wasAction) {
-      throw 1;
-    }
-    return Boolean(hist.state?.action);
+    const s = this.#internalState();
+    return Boolean(s?.action);
   }
 
   get state() {
@@ -194,7 +226,7 @@ class StackImpl {
     }
 
     /** @type {StackState} */
-    const s = hist.state;
+    const s = this.#internalState();
     return s.prevUrl ?? null;
   }
 
@@ -208,7 +240,7 @@ class StackImpl {
     }
 
     /** @type {StackState} */
-    const s = hist.state;
+    const s = this.#internalState();
     return s.prevUrl ?? null;
   }
 
@@ -219,6 +251,7 @@ class StackImpl {
    * @param {PopStateEvent} event
    */
   #popstate = (event) => {
+    this.#recentBrowserState = hist.state;
     if (this.#duringPop) {
       return;  // managed, ignore
     }
@@ -244,7 +277,7 @@ class StackImpl {
 
       // Don't allow naked '#'. Aren't we nice.
       const path = findNakedHashHistoryUrl();
-      window.history.replaceState(state, '', path);
+      this.#replaceState(state, '', path);
       isLinkClick = true;
     } else {
       state = { ...state };
@@ -301,7 +334,7 @@ class StackImpl {
           this.#depth = state.depth;
           this.#wasAction = false;
           this.#url = intendedUrl;
-          hist.pushState(state, '', intendedUrl);
+          this.#pushState(state, '', intendedUrl);
           this.#announce();
         });
         hist.go(-2);
@@ -342,7 +375,7 @@ class StackImpl {
         if (this.#priorActionState?.prevUrl) {
           state.prevUrl = this.#priorActionState.prevUrl;
         }
-        hist.pushState(state, '', this.#url);
+        this.#pushState(state, '', this.#url);
 
         // (c) go back to where the user intended (might already be here)
         const userJump = jump + 1;  // jump is -ve, so this is one closer
@@ -369,7 +402,7 @@ class StackImpl {
       if (direction === -1 && state.depth === 1) {
         this.#depth = 1;
         delete state.action;
-        hist.replaceState(state, '', null);
+        this.#replaceState(state, '', null);
         this.#announce();
         return;
       }
@@ -424,7 +457,7 @@ class StackImpl {
 
     this.#initial = '';
 
-    const s = /** @type {StackState} */ (hist.state);
+    const s = this.#internalState();
     const prevState = s.state;
     this.#setUserState(arg.state);
 
@@ -441,7 +474,7 @@ class StackImpl {
         if (prevState) {
           state.prevState = prevState;
         }
-        hist.replaceState(state, arg.title ?? '', path);
+        this.#replaceState(state, arg.title ?? '', path);
         if (arg.title) {
           document.title = arg.title;
         }
@@ -455,7 +488,7 @@ class StackImpl {
       /** @type {StackState} */
       const state = { ...s };
       delete state.action;
-      hist.replaceState(state, '', null);
+      this.#replaceState(state, '', null);
     }
 
     ++this.#depth;
@@ -467,7 +500,7 @@ class StackImpl {
     if (prevState) {
       state.prevState = prevState;
     }
-    hist.pushState(state, arg.title ?? '', path);
+    this.#pushState(state, arg.title ?? '', path);
     if (arg.title) {
       document.title = arg.title;
     }
@@ -486,7 +519,7 @@ class StackImpl {
 
     this.#setActionState(actionState);
 
-    const s = /** @type {StackState} */ (hist.state);
+    const s = this.#internalState();
 
     // We're already an action. Do nothing but announce. (Our state may have changed.)
     if (s?.action) {
@@ -517,11 +550,11 @@ class StackImpl {
       // This isn't a real push - we don't have enough stack to deal with it.
       // This means that later pages are still here.
       // looks like [faux, ...rest]
-      hist.replaceState(state, '', null);
+      this.#replaceState(state, '', null);
     } else {
       // If we have depth to go back up past this action, then really push it.
       // Remember this depth will be >=3 now.
-      hist.pushState(state, '', null);
+      this.#pushState(state, '', null);
     }
     // nb. we don't clear #userState here - actions don't have it anyway and we need it for links
 
@@ -531,12 +564,12 @@ class StackImpl {
   }
 
   get canPop() {
-    const s = /** @type {StackState} */ (hist.state);
+    const s = this.#internalState();
     return s.action || this.#depth > 2;
   }
 
   #maybeClearFakeAction = () => {
-    const s = /** @type {StackState} */ (hist.state);
+    const s = this.#internalState();
 
     if (!s.action || this.#depth > 1) {
       return false;
@@ -552,7 +585,7 @@ class StackImpl {
     }
     this.#setUserState(state.state);
 
-    hist.replaceState(state, '', null);
+    this.#replaceState(state, '', null);
     this.#wasAction = false;
 
     this.#initial = '';
@@ -575,6 +608,12 @@ class StackImpl {
       return false;
     }
 
+    // If the site using this library tries to make changes as the page is unloading, everything
+    // will become a mess. Delay so that unload-triggered behavior probably won't fire. This
+    // effects Firefox.
+    // We only do this on pop, because it has complex interactions with the state.
+    await delayFrame();
+
     this.#initial = '';
 
     // Otherwise, we pop as normal. This can include an action.
@@ -582,7 +621,7 @@ class StackImpl {
     const resultDepth = this.#depth - 1;
 
     /** @type {StackState} */
-    const beforePopHistoryState = { ...hist.state };
+    const beforePopHistoryState = { ...this.#internalState() };
 
     // find targetUrl
     /** @type {string?} */
@@ -614,7 +653,7 @@ class StackImpl {
       }
       this.#setUserState(state.state);
 
-      hist.pushState(state, '', targetUrl);
+      this.#pushState(state, '', targetUrl);
 
       this.#wasAction = false;
       this.#url = this.#buildUrl();
@@ -646,18 +685,18 @@ class StackImpl {
       this.#setUserState(arg.state);
     }
 
+    const s = { ...this.#internalState() };
+
     if (this.#wasAction) {
       if (!this.#priorActionState) {
         throw new Error(`missing prev state cache`);
       }
 
-      /** @type {StackState} */
-      const s = { ...hist.state };
       if (updateState) {
         s.prevState = this.#userState;  // already copied
       }
 
-      hist.replaceState(s, '', path);
+      this.#replaceState(s, '', path);
 
       if (updateState) {
         this.#priorActionState = { ...this.#priorActionState, state: arg.state };
@@ -670,13 +709,12 @@ class StackImpl {
       return;
     }
 
-    const s = { ...hist.state };
     if (updateState) {
       s.state = arg.state;
       this.#setUserState(s.state);
     }
 
-    hist.replaceState(s, '', path);
+    this.#replaceState(s, '', path);
     this.#url = this.#buildUrl();
     this.#announce();
   }
@@ -686,8 +724,7 @@ class StackImpl {
       throw new Error(`can't back during another op`);
     }
 
-    const prev = /** @type {StackState} */ (hist.state);
-
+    const prev = this.#internalState();
     if (prev.action) {
       return this.pop().then(() => true);
     }
@@ -746,6 +783,14 @@ class StackImpl {
 
     return p;
   };
+}
+
+
+/**
+ * @return {Promise<void>}
+ */
+function delayFrame() {
+  return new Promise((r) => window.setTimeout(r, 0));
 }
 
 
