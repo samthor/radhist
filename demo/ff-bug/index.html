@@ -33,7 +33,7 @@ getButton.onclick = () => {
 };
 
 window.addEventListener('popstate', (event) => {
-  log(`popstate fired, location now=${window.location.toString()}`);
+  log(`popstate fired, location now=${window.location.toString()} history.state=${JSON.stringify(history.state)}`);
 });
 
 </script>
