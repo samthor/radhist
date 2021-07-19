@@ -1,6 +1,6 @@
 {
   "name": "radhist",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Radical history and action state",
   "main": "stack.js",
   "exports": {
