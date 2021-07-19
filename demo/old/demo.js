@@ -1,6 +1,15 @@
 
 import { attach } from "../../stack.js";
 
+
+window.addEventListener('hashchange', (event) => {
+  console.debug('! raw hashchange', window.location.hash);
+});
+window.addEventListener('popstate', (event) => {
+  console.debug('! raw popstate', window.location.hash);
+});
+
+
 const stack = attach();
 
 const selfKey = (Math.random().toString(36));

@@ -93,26 +93,39 @@ class StackImpl {
       this.#setUserState(s.state);
 
       if (s.action) {
-        this.#priorActionState = {depth: s.depth - 1};
+        this.#priorActionState = { depth: s.depth - 1 };
         if (s.prevState) {
           this.#priorActionState.state = s.prevState;
         }
 
         // TODO(samthor): This might be important.
-        if (document.readyState !== 'complete') {
-          p = p.then(async () => {
-            /** @type {Promise<void>} */
-            const inner = new Promise((r) => {
-              window.addEventListener('load', () => r());
+        // We need this for Safari, which seemingly won't do state changes until tihs is complete.
+        // However, by the time we run the Promise, the microtask might already put us past this
+        // state change.
+        p = p.then(() => {
+          if (document.readyState === 'complete') {
+            return;
+          }
+
+          /** @type {Promise<void>} */
+          const inner = new Promise((r) => {
+            document.addEventListener('readystatechange', () => {
+              if (document.readyState === 'complete') {
+                r();
+              }
             });
-            await inner;
           });
-        }
+          return inner;
+        });
 
         // Reload should remove any pending action: it's transient.
         // This will be async if on the stack, sync otherwise.
         this.#wasAction = true;
-        p = p.then(() => this.pop().then(() => undefined));  // makes result void
+        p = p.then(async () => {
+          // console.info('popping', document.readyState);
+          await this.pop();
+          // console.info('DONE popping');
+        });
 
         // FIXME: If this is a real pop, using Back in Chrome - only within the first ~5 sec -
         // will go to a nonsensical state (possibly before this entire page). Waiting or calling
@@ -121,7 +134,7 @@ class StackImpl {
       this.#initial = 'restore';
     } else {
       this.#depth = 1;
-      const state = {depth: this.#depth};
+      const state = { depth: this.#depth };
 
       const path = findNakedHashHistoryUrl();
       hist.replaceState(state, '', path);
@@ -200,7 +213,7 @@ class StackImpl {
   }
 
   // nb. intentionally empty until replaced in ctor
-  #announce = () => {};
+  #announce = () => { };
 
   /**
    * @param {PopStateEvent} event
@@ -234,15 +247,17 @@ class StackImpl {
       window.history.replaceState(state, '', path);
       isLinkClick = true;
     } else {
-      state = {...state};
+      state = { ...state };
     }
 
     const jump = state.depth - this.#depth;
     const direction = (Math.sign(state.depth - this.#depth));
     if (direction === 0) {
       // This can happen if a user clicks on a #-link they're already at.
+      // FIXME: It does not happen in Firefox, which seemingly doesn't fire any event.
+      // ... but it resets the state to zero.
+      // Because of this, let's do nothing. (It is safe to call .pop() in Chrome/Safari).
       return;
-      throw new Error(`unexpected popstate, zero move`);
     }
 
     if (this.#wasAction) {
@@ -317,7 +332,7 @@ class StackImpl {
         // (b) push page2, replacing it
         const depth = hist.state.depth + 1;
         /** @type {StackState} */
-        const state = {depth};
+        const state = { depth };
 
         // We use priorActionState here because the user can only go back like this in normal
         // operation, where the user went forward to an action in the same browser window.
@@ -418,7 +433,7 @@ class StackImpl {
 
       if (this.#depth > 1) {
         // We can simply take over this current action; prevUrl and depth remain the same.
-        const state = {...s};
+        const state = { ...s };
         delete state.action;
         if (arg.state) {
           state.state = arg.state;
@@ -438,14 +453,14 @@ class StackImpl {
       // We have no depth. This action has taken over the top entry.
       // Clear it, then push our new regular path.
       /** @type {StackState} */
-      const state = {...s};
+      const state = { ...s };
       delete state.action;
       hist.replaceState(state, '', null);
     }
 
     ++this.#depth;
     /** @type {StackState} */
-    const state = {depth: this.#depth, prevUrl: this.#url};
+    const state = { depth: this.#depth, prevUrl: this.#url };
     if (arg.state) {
       state.state = arg.state;
     }
@@ -482,7 +497,7 @@ class StackImpl {
       return;
     }
 
-    this.#priorActionState = {...s};
+    this.#priorActionState = { ...s };
 
     const prevState = s.state;
 
@@ -493,7 +508,7 @@ class StackImpl {
 
     // generate new/virtual state
     /** @type {StackState} */
-    const state = {action: true, depth: this.#depth};
+    const state = { action: true, depth: this.#depth };
     if (prevState) {
       state.prevState = prevState;
     }
@@ -528,7 +543,7 @@ class StackImpl {
     }
 
     // not really popping - just return to previous state
-    const state = {...s};
+    const state = { ...s };
     delete state.action;
 
     if (state.prevState) {
@@ -567,7 +582,7 @@ class StackImpl {
     const resultDepth = this.#depth - 1;
 
     /** @type {StackState} */
-    const beforePopHistoryState = {...hist.state};
+    const beforePopHistoryState = { ...hist.state };
 
     // find targetUrl
     /** @type {string?} */
@@ -590,7 +605,7 @@ class StackImpl {
       this.#depth = resultDepth;
 
       /** @type {StackState} */
-      const state = {depth: this.#depth, prevUrl: this.#buildUrl()};
+      const state = { depth: this.#depth, prevUrl: this.#buildUrl() };
       if (hist.state.state) {
         state.prevState = hist.state.state;
       }
@@ -637,7 +652,7 @@ class StackImpl {
       }
 
       /** @type {StackState} */
-      const s = {...hist.state};
+      const s = { ...hist.state };
       if (updateState) {
         s.prevState = this.#userState;  // already copied
       }
@@ -645,7 +660,7 @@ class StackImpl {
       hist.replaceState(s, '', path);
 
       if (updateState) {
-        this.#priorActionState = {...this.#priorActionState, state: arg.state};
+        this.#priorActionState = { ...this.#priorActionState, state: arg.state };
       }
       if (path) {
         this.#url = this.#buildUrl();
@@ -655,7 +670,7 @@ class StackImpl {
       return;
     }
 
-    const s = {...hist.state};
+    const s = { ...hist.state };
     if (updateState) {
       s.state = arg.state;
       this.#setUserState(s.state);
@@ -709,7 +724,7 @@ class StackImpl {
    *
    * @param {() => void} handler
    */
-  #handlePopOnce = (handler = () => {}) => {
+  #handlePopOnce = (handler = () => { }) => {
     if (this.#duringPop) {
       throw new Error(`can't nest handling pop`);
     }
