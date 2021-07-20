@@ -187,6 +187,9 @@ class StackImpl {
         // FIXME: If this is a real pop, using Back in Chrome - only within the first ~5 sec -
         // will go to a nonsensical state (possibly before this entire page). Waiting or calling
         // history.back() is fine.
+        // This is intentional and designed to prevent abuse of pushState:
+        //   https://bugs.chromium.org/p/chromium/issues/detail?id=907167
+        // ...
       }
       this.#initial = 'restore';
     } else {
